@@ -60,6 +60,7 @@ namespace MovieApp.Manager
 
         public Movie TryGet(int id)
         {
+            CheckLastUpdated();
             Movie movie;
             if (_dictionary.TryGetValue(id, out movie)) return movie;
 
@@ -74,11 +75,13 @@ namespace MovieApp.Manager
 
         public IEnumerable<Movie> Search(string term)
         {
+            CheckLastUpdated();
             return _dictionary.Values.Where(d => d.ContainsTerm(term)).ToList();
         }
 
         public int AddNew(Movie movie)
         {
+            CheckLastUpdated();
             var result = _source.Create(MapToSource(movie));
 
             if (result > 0)
@@ -125,6 +128,7 @@ namespace MovieApp.Manager
 
         public bool Update(Movie movie)
         {
+            CheckLastUpdated();
             var source = MapToSource(movie);
             source.MovieId = movie.Id;
             _source.Update(source);
