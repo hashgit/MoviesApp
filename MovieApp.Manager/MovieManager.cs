@@ -19,7 +19,6 @@ namespace MovieApp.Manager
         {
             _dictionary = new ConcurrentDictionary<int, Movie>();
             _source = new MovieDataSource();
-            LoadMovies();
         }
 
         private void LoadMovies()
@@ -38,6 +37,7 @@ namespace MovieApp.Manager
         }
 
         private static readonly Lazy<MovieManager> _instance = new Lazy<MovieManager>(() => new MovieManager());
+        private DateTime _lastUpdated = DateTime.MinValue;
 
         public static MovieManager Instance
         {
@@ -46,7 +46,16 @@ namespace MovieApp.Manager
 
         public IEnumerable<Movie> GetAll()
         {
+            CheckLastUpdated();
             return _dictionary.OrderBy(t => t.Key).Select(t => t.Value).ToList();
+        }
+
+        private void CheckLastUpdated()
+        {
+            // updated today
+            if (_lastUpdated.Date == DateTime.Now.Date) return;
+            LoadMovies();
+            _lastUpdated = DateTime.Now;
         }
 
         public Movie TryGet(int id)
@@ -68,7 +77,7 @@ namespace MovieApp.Manager
             return _dictionary.Values.Where(d => d.ContainsTerm(term)).ToList();
         }
 
-        public bool AddNew(Movie movie)
+        public int AddNew(Movie movie)
         {
             var result = _source.Create(MapToSource(movie));
 
@@ -77,9 +86,10 @@ namespace MovieApp.Manager
                 movie.Id = result;
                 // don't care if that fails, it will fix itself up
                 _dictionary.TryAdd(result, movie);
+                return result;
             }
 
-            return true;
+            return 0;
         }
 
         private MovieData MapToSource(Movie movie)
