@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using MovieApp.Models;
 using MoviesLibrary;
 
@@ -26,14 +27,11 @@ namespace MovieApp.Manager
             var movies = _source.GetAllData();
             if (movies == null || movies.Count == 0) return;
 
-            lock (_padlock)
+            movies.ForEach(movie =>
             {
-                movies.ForEach(movie =>
-                {
-                    var movieDto = MapToDto(movie);
-                    _dictionary.AddOrUpdate(movie.MovieId, movieDto, (i, movie1) => movieDto);
-                });
-            }
+                var movieDto = MapToDto(movie);
+                _dictionary.AddOrUpdate(movie.MovieId, movieDto, (i, movie1) => movieDto);
+            });
         }
 
         private static readonly Lazy<MovieManager> _instance = new Lazy<MovieManager>(() => new MovieManager());
@@ -53,9 +51,17 @@ namespace MovieApp.Manager
         private void CheckLastUpdated()
         {
             // updated today
-            if (_lastUpdated.Date == DateTime.Now.Date) return;
-            LoadMovies();
-            _lastUpdated = DateTime.Now;
+            if (_lastUpdated.Date < DateTime.Now.Date)
+            {
+                lock (_padlock)
+                {
+                    if (_lastUpdated < DateTime.Now.Date)
+                    {
+                        LoadMovies();
+                        _lastUpdated = DateTime.Now;
+                    }
+                }
+            }
         }
 
         public Movie TryGet(int id)
@@ -87,6 +93,7 @@ namespace MovieApp.Manager
             if (result > 0)
             {
                 movie.Id = result;
+                movie.BuildSearchText();
                 // don't care if that fails, it will fix itself up
                 _dictionary.TryAdd(result, movie);
                 return result;
@@ -114,6 +121,7 @@ namespace MovieApp.Manager
         {
             var dto = new Movie
             {
+                Id = obj.MovieId,
                 Classification = obj.Classification,
                 Genre = obj.Genre,
                 Rating = obj.Rating,
@@ -131,6 +139,8 @@ namespace MovieApp.Manager
             CheckLastUpdated();
             var source = MapToSource(movie);
             source.MovieId = movie.Id;
+
+            movie.BuildSearchText();
             _source.Update(source);
 
             _dictionary.AddOrUpdate(movie.Id, movie, (i, movie1) => movie);
