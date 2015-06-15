@@ -31,7 +31,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="MoviesLibrary">
-      <HintPath>..\..\..\Users\imad\Downloads\Csharp.Exercise\Csharp Test\MoviesLibrary.dll</HintPath>
+      <HintPath>..\packages\Csharp Test\MoviesLibrary.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
