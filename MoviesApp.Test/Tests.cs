@@ -13,7 +13,7 @@ namespace MoviesApp.Test
         {
             // just a sample test case
 
-            var movies = MovieManager.Instance.GetAll();
+            var movies = new MoviesManager().GetAll();
             Assert.IsNotNull(movies);
             Assert.AreEqual(80, movies.Count());
         }

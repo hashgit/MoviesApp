@@ -7,60 +7,26 @@ using MoviesLibrary;
 
 namespace MovieApp.Manager
 {
-    public class MovieManager
+    public class MoviesManager : IMoviesManager
     {
+        private readonly ConcurrentDictionary<int, Movie> _dictionary;
+        private readonly object _padlock = new object();
         // have to keep object in the class otherwise will lose the session
         // in reality we should create this instance when required
         private readonly MovieDataSource _source;
-        private readonly ConcurrentDictionary<int, Movie> _dictionary;
-        private readonly object _padlock = new object();
+        private DateTime _lastUpdated = DateTime.MinValue;
 
-        private MovieManager()
+        public MoviesManager()
         {
             _dictionary = new ConcurrentDictionary<int, Movie>();
             _source = new MovieDataSource();
         }
 
-        private void LoadMovies()
-        {
-            var movies = _source.GetAllData();
-            if (movies == null || movies.Count == 0) return;
-
-            movies.ForEach(movie =>
-            {
-                var movieDto = MapToDto(movie);
-                _dictionary.AddOrUpdate(movie.MovieId, movieDto, (i, movie1) => movieDto);
-            });
-        }
-
-        private static readonly Lazy<MovieManager> _instance = new Lazy<MovieManager>(() => new MovieManager());
-        private DateTime _lastUpdated = DateTime.MinValue;
-
-        public static MovieManager Instance
-        {
-            get { return _instance.Value; }
-        }
 
         public IEnumerable<Movie> GetAll()
         {
             CheckLastUpdated();
             return _dictionary.OrderBy(t => t.Key).Select(t => t.Value).ToList();
-        }
-
-        private void CheckLastUpdated()
-        {
-            // updated today
-            if (_lastUpdated.Date < DateTime.Now.Date)
-            {
-                lock (_padlock)
-                {
-                    if (_lastUpdated < DateTime.Now.Date)
-                    {
-                        LoadMovies();
-                        _lastUpdated = DateTime.Now;
-                    }
-                }
-            }
         }
 
         public Movie TryGet(int id)
@@ -101,38 +67,6 @@ namespace MovieApp.Manager
             return 0;
         }
 
-        private MovieData MapToSource(Movie movie)
-        {
-            var obj = new MovieData
-            {
-                Classification = movie.Classification,
-                Genre = movie.Genre,
-                Rating = movie.Rating,
-                Title = movie.Title,
-                ReleaseDate = movie.ReleaseDate,
-            };
-
-            if (movie.Cast != null) obj.Cast = movie.Cast.ToArray();
-            return obj;
-        }
-
-        private Movie MapToDto(MovieData obj)
-        {
-            var dto = new Movie
-            {
-                Id = obj.MovieId,
-                Classification = obj.Classification,
-                Genre = obj.Genre,
-                Rating = obj.Rating,
-                Title = obj.Title,
-                ReleaseDate = obj.ReleaseDate,
-            };
-
-            if (obj.Cast != null) dto.Cast = obj.Cast.ToArray();
-            dto.BuildSearchText();
-            return dto;
-        }
-
         public bool Update(Movie movie)
         {
             CheckLastUpdated();
@@ -144,6 +78,62 @@ namespace MovieApp.Manager
 
             _dictionary.AddOrUpdate(movie.Id, movie, (i, movie1) => movie);
             return true;
+        }
+
+        private void LoadMovies()
+        {
+            var movies = _source.GetAllData();
+            if (movies == null || movies.Count == 0) return;
+
+            movies.ForEach(movie =>
+            {
+                var movieDto = MapToDto(movie);
+                _dictionary.AddOrUpdate(movie.MovieId, movieDto, (i, movie1) => movieDto);
+            });
+        }
+
+        private void CheckLastUpdated()
+        {
+            // updated today
+            if (DateTime.Now - _lastUpdated < TimeSpan.FromHours(24)) return;
+            lock (_padlock)
+            {
+                if (DateTime.Now - _lastUpdated < TimeSpan.FromHours(24)) return;
+                LoadMovies();
+                _lastUpdated = DateTime.Now;
+            }
+        }
+
+        private static MovieData MapToSource(Movie movie)
+        {
+            var obj = new MovieData
+            {
+                Classification = movie.Classification,
+                Genre = movie.Genre,
+                Rating = movie.Rating,
+                Title = movie.Title,
+                ReleaseDate = movie.ReleaseDate
+            };
+
+            if (movie.Cast != null) obj.Cast = movie.Cast.ToArray();
+            return obj;
+        }
+
+        private static Movie MapToDto(MovieData obj)
+        {
+            var dto = new Movie
+            {
+                Id = obj.MovieId,
+                Classification = obj.Classification,
+                Genre = obj.Genre,
+                Rating = obj.Rating,
+                Title = obj.Title,
+                ReleaseDate = obj.ReleaseDate
+            };
+
+            if (obj.Cast != null) dto.Cast = obj.Cast.ToArray();
+            dto.BuildSearchText();
+            return dto;
         }
     }
 }

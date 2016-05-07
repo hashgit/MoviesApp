@@ -31,7 +31,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="MoviesLibrary">
-      <HintPath>..\packages\Csharp Test\MoviesLibrary.dll</HintPath>
+      <HintPath>..\..\..\Users\imad\Downloads\Csharp.Exercise (1)\Csharp.Exercise\Csharp Test\MoviesLibrary.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -42,6 +42,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="IMoviesManager.cs" />
     <Compile Include="MovieManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
