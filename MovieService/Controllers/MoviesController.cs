@@ -1,6 +1,8 @@
-﻿using System.Web.Http;
+﻿using System.Collections.Generic;
+using System.Web.Http;
 using MovieApp.Manager;
 using MovieApp.Models;
+using MovieService.Model;
 
 namespace MovieService.Controllers
 {
@@ -15,11 +17,22 @@ namespace MovieService.Controllers
 
         [Route("api/Movies/")]
         [HttpGet]
-        public IHttpActionResult List(string term = null)
+        public IHttpActionResult List([FromUri] SearchModel model)
         {
-            if (!string.IsNullOrWhiteSpace(term)) return Ok(_moviesManager.Search(term));
-            var allMovies = _moviesManager.GetAll();
-            return Ok(allMovies);
+            if (model == null) model = new SearchModel();
+
+            IEnumerable<Movie> movies;
+            if (!string.IsNullOrWhiteSpace(model.Term))
+            {
+                movies = _moviesManager.Search(model.Term);
+            }
+            else
+            {
+                movies = _moviesManager.GetAll();
+            }
+
+            var sortedMovies = _moviesManager.Sort(movies, model.Field, model.Direction);
+            return Ok(sortedMovies);
         }
 
         [Route("api/Movies/{id}")]

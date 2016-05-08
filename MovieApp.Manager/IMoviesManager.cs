@@ -10,5 +10,6 @@ namespace MovieApp.Manager
         Movie TryGet(int id);
         int AddNew(Movie movie);
         bool Update(Movie movie);
+        IEnumerable<Movie> Sort(IEnumerable<Movie> movies, SortFields? field, SortDirection? direction);
     }
 }

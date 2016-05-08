@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using System.Threading.Tasks;
 
 namespace MovieApp.Models
 {
@@ -16,7 +17,7 @@ namespace MovieApp.Models
 
         public void BuildSearchText()
         {
-            _searchText = string.Format("{0} {1} {2} {3} {4} {5}",
+            _searchText = string.Format("{0}, {1}, {2}, {3}, {4}, {5}",
                 Title == null ? string.Empty : Title.ToLower(),
                 Classification == null ? string.Empty : Classification.ToLower(),
                 Genre == null ? string.Empty : Genre.ToLower(),

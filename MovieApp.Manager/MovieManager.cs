@@ -80,6 +80,20 @@ namespace MovieApp.Manager
             return true;
         }
 
+        public IEnumerable<Movie> Sort(IEnumerable<Movie> movies, SortFields? field, SortDirection? direction)
+        {
+            if (!field.HasValue) field = SortFields.Id;
+            if (!direction.HasValue) direction = SortDirection.Ascending;
+
+            var property = typeof (Movie).GetProperty(field.ToString());
+
+            IEnumerable<Movie> result = direction == SortDirection.Ascending ?
+                movies.OrderBy(m => property.GetValue(m))
+                : movies.OrderByDescending(m => property.GetValue(m));
+
+            return result;
+        }
+
         private void LoadMovies()
         {
             var movies = _source.GetAllData();
