@@ -6,6 +6,8 @@ using Autofac;
 using Autofac.Integration.Mvc;
 using Autofac.Integration.WebApi;
 using MovieApp.Manager;
+using MovieApp.Manager.Repositories;
+using MovieApp.Manager.DataContext;
 
 namespace MovieService
 {
@@ -28,7 +30,10 @@ namespace MovieService
             var builder = new ContainerBuilder();
             builder.RegisterApiControllers(Assembly.GetExecutingAssembly()).InstancePerRequest();
             builder.RegisterControllers(Assembly.GetExecutingAssembly()).InstancePerRequest();
-            builder.RegisterType<MoviesManager>().As<IMoviesManager>().SingleInstance();
+            builder.RegisterType<MoviesManager>().As<IMoviesManager>().InstancePerRequest();
+            builder.RegisterType<MoviesRepository>().As<IMoviesRepository>().InstancePerRequest();
+            builder.RegisterType<StatusRepository>().As<IStatusRepository>().InstancePerRequest();
+            builder.RegisterType<MoviesDbContext>().As<MoviesDbContext>().InstancePerRequest();
 
             return builder.Build();
         }

@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.31101.0
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MovieService", "MovieService\MovieService.csproj", "{CA00007F-DA14-4097-BAD3-DA1DBE889653}"
 EndProject
@@ -10,6 +10,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MovieApp.Models", "MovieApp.Models\MovieApp.Models.csproj", "{6622C89E-0FD8-48C8-A1FA-C41F26C96B0D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MoviesApp.Test", "MoviesApp.Test\MoviesApp.Test.csproj", "{702290BD-1E51-4350-B8EC-AFA3BF2CF83E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MovieApp", "MovieApp\MovieApp.csproj", "{168793E2-D996-41FB-A311-CC5CE81955EA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{702290BD-1E51-4350-B8EC-AFA3BF2CF83E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{702290BD-1E51-4350-B8EC-AFA3BF2CF83E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{702290BD-1E51-4350-B8EC-AFA3BF2CF83E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{168793E2-D996-41FB-A311-CC5CE81955EA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{168793E2-D996-41FB-A311-CC5CE81955EA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{168793E2-D996-41FB-A311-CC5CE81955EA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{168793E2-D996-41FB-A311-CC5CE81955EA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

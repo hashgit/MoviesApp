@@ -1,7 +1,9 @@
-﻿using System.Linq;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MovieApp.Manager;
-using MovieApp.Models;
+using Moq;
+using MovieApp.Manager.Repositories;
+using MovieApp.Manager.Entities;
+using System.Collections.Generic;
 
 namespace MoviesApp.Test
 {
@@ -9,38 +11,18 @@ namespace MoviesApp.Test
     public class Tests
     {
         [TestMethod]
-        public void CanReadAllMovies()
+        public void CanPopulateTheDatabaseWhenNoStatusFound()
         {
             // just a sample test case
-            var movies = new MoviesManager().GetAll();
-            Assert.IsNotNull(movies);
-            Assert.AreEqual(80, movies.Count());
-        }
+            var mockStatusRepository = new Mock<IStatusRepository>();
+            var mockMoviesRepository = new Mock<IMoviesRepository>();
 
-        [TestMethod]
-        public void CanSortMovies()
-        {
-            var manager = new MoviesManager();
-            var movies = manager.GetAll();
-            Assert.IsNotNull(movies);
-            Assert.AreEqual(80, movies.Count());
-            Assert.AreEqual(1, movies.First().Id);
+            var movies = new MoviesManager(mockStatusRepository.Object, mockMoviesRepository.Object);
 
-            var sorted = manager.Sort(movies, SortFields.Id, SortDirection.Descending);
-            Assert.AreEqual(80, sorted.First().Id);
-        }
-
-        [TestMethod]
-        public void CanSortMoviesByGenre()
-        {
-            var manager = new MoviesManager();
-            var movies = manager.GetAll();
-            Assert.IsNotNull(movies);
-            Assert.AreEqual(80, movies.Count());
-            Assert.AreEqual(1, movies.First().Id);
-
-            var sorted = manager.Sort(movies, SortFields.Genre, SortDirection.Descending);
-            Assert.AreEqual(68, sorted.First().Id);
+            mockStatusRepository.Setup(x => x.GetLastRuntime()).Returns<Status>(null);
+            movies.SyncDatabase();
+            mockMoviesRepository.Verify(x => x.Save(It.IsAny<List<MovieApp.Manager.Entities.Movie>>()));
+            mockStatusRepository.Verify(x => x.UpdateLastRuntime());
         }
     }
 }

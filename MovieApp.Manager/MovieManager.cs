@@ -1,153 +1,144 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using MovieApp.Models;
 using MoviesLibrary;
+using MovieApp.Manager.Repositories;
+using System.Threading.Tasks;
 
 namespace MovieApp.Manager
 {
     public class MoviesManager : IMoviesManager
     {
-        private readonly ConcurrentDictionary<int, Movie> _dictionary;
-        private readonly object _padlock = new object();
-        // have to keep object in the class otherwise will lose the session
-        // in reality we should create this instance when required
+        private readonly IStatusRepository _statusRepository;
+        private readonly IMoviesRepository _moviesRepository;
         private readonly MovieDataSource _source;
-        private DateTime _lastUpdated = DateTime.MinValue;
 
-        public MoviesManager()
+        public MoviesManager(IStatusRepository statusRepository, IMoviesRepository moviesRepository)
         {
-            _dictionary = new ConcurrentDictionary<int, Movie>();
-            _source = new MovieDataSource();
+            _moviesRepository = moviesRepository;
+            _statusRepository = statusRepository;
+            _source = new MovieDataSource(); // this should be injected as well but the DLL should not be added to all projects
         }
 
 
-        public IEnumerable<Movie> GetAll()
+        public async Task<IEnumerable<Movie>> GetAll(SortFields? sortField, SortDirection? sortDirection)
         {
-            CheckLastUpdated();
-            return _dictionary.OrderBy(t => t.Key).Select(t => t.Value).ToList();
+            var movies = await _moviesRepository.GetAll(sortField, sortDirection);
+            return movies.Select(m => Maps.MapToDto(m));
         }
 
         public Movie TryGet(int id)
         {
-            CheckLastUpdated();
-            Movie movie;
-            if (_dictionary.TryGetValue(id, out movie)) return movie;
-
-            // not found in the cache, try in the source
-            var source = _source.GetDataById(id);
-            if (source == null) return null;
-
-            var data = MapToDto(source);
-            _dictionary.TryAdd(data.Id, data);
-            return data;
-        }
-
-        public IEnumerable<Movie> Search(string term)
-        {
-            CheckLastUpdated();
-            return _dictionary.Values.Where(d => d.ContainsTerm(term)).ToList();
-        }
-
-        public int AddNew(Movie movie)
-        {
-            CheckLastUpdated();
-            var result = _source.Create(MapToSource(movie));
-
-            if (result > 0)
+            var movie = _moviesRepository.Get(id);
+            if (movie != null)
             {
-                movie.Id = result;
-                movie.BuildSearchText();
-                // don't care if that fails, it will fix itself up
-                _dictionary.TryAdd(result, movie);
-                return result;
+                return Maps.MapToDto(movie);
             }
 
-            return 0;
+            return null;
+        }
+
+        public async Task<IEnumerable<Movie>> Search(string term)
+        {
+            var movies = await _moviesRepository.Find(term);
+            return movies.Select(Maps.MapToDto);
+        }
+
+        public void AddNew(Movie movie)
+        {
+            movie.BuildSearchText();
+            _moviesRepository.Save(Maps.MapToEntity(movie));
         }
 
         public bool Update(Movie movie)
         {
-            CheckLastUpdated();
-            var source = MapToSource(movie);
-            source.MovieId = movie.Id;
+            var stored = _moviesRepository.Get(movie.Id);
+            if (stored != null)
+            {
+                movie.BuildSearchText();
 
-            movie.BuildSearchText();
-            _source.Update(source);
+                stored.Genre = movie.Genre;
+                stored.Classification = movie.Classification;
+                stored.Rating = movie.Rating;
+                stored.ReleaseDate = movie.ReleaseDate;
+                stored.Title = movie.Title;
+                stored.SearchText = movie.SearchText;
 
-            _dictionary.AddOrUpdate(movie.Id, movie, (i, movie1) => movie);
-            return true;
+                // update cast here too
+
+                _moviesRepository.Save(stored);
+                return true;
+            }
+
+            return false;
         }
 
-        public IEnumerable<Movie> Sort(IEnumerable<Movie> movies, SortFields? field, SortDirection? direction)
-        {
-            if (!field.HasValue) field = SortFields.Id;
-            if (!direction.HasValue) direction = SortDirection.Ascending;
-
-            var property = typeof (Movie).GetProperty(field.ToString());
-
-            IEnumerable<Movie> result = direction == SortDirection.Ascending ?
-                movies.OrderBy(m => property.GetValue(m))
-                : movies.OrderByDescending(m => property.GetValue(m));
-
-            return result;
-        }
-
-        private void LoadMovies()
+        private IList<Movie> Load()
         {
             var movies = _source.GetAllData();
-            if (movies == null || movies.Count == 0) return;
-
-            movies.ForEach(movie =>
-            {
-                var movieDto = MapToDto(movie);
-                _dictionary.AddOrUpdate(movie.MovieId, movieDto, (i, movie1) => movieDto);
-            });
+            return movies.Select(x => Maps.MapToDto(x)).ToList();
         }
 
-        private void CheckLastUpdated()
+        public async void SyncDatabase()
         {
-            // updated today
-            if (DateTime.Now - _lastUpdated < TimeSpan.FromHours(24)) return;
-            lock (_padlock)
+            var status = _statusRepository.GetLastRuntime();
+            if (status == null || !status.LastUpdate.HasValue)
             {
-                if (DateTime.Now - _lastUpdated < TimeSpan.FromHours(24)) return;
-                LoadMovies();
-                _lastUpdated = DateTime.Now;
+                // we have nothing in the db, populate it from 3rd party data source
+                var movies = Load();
+                var entities = movies.Select(m => Maps.MapToEntity(m)).ToList();
+
+                _moviesRepository.Save(entities);
+                _statusRepository.UpdateLastRuntime();
             }
-        }
-
-        private static MovieData MapToSource(Movie movie)
-        {
-            var obj = new MovieData
+            else
             {
-                Classification = movie.Classification,
-                Genre = movie.Genre,
-                Rating = movie.Rating,
-                Title = movie.Title,
-                ReleaseDate = movie.ReleaseDate
-            };
+                // update latest movies
+                using (var transaction = _moviesRepository.Begin())
+                {
+                    // this transaction is to avoid any concurrent updates from the website
 
-            if (movie.Cast != null) obj.Cast = movie.Cast.ToArray();
-            return obj;
-        }
+                    var recentMovies = _moviesRepository.GetRecentMovies(status.LastUpdate.Value);
+                    foreach (var movie in recentMovies)
+                    {
+                        var dto = Maps.MapToSource(movie);
+                        if (movie.DateCreated >= status.LastUpdate.Value)
+                        {
+                            _source.Create(dto);
+                        }
+                        else
+                        {
+                            _source.Update(dto);
+                        }
+                    }
 
-        private static Movie MapToDto(MovieData obj)
-        {
-            var dto = new Movie
-            {
-                Id = obj.MovieId,
-                Classification = obj.Classification,
-                Genre = obj.Genre,
-                Rating = obj.Rating,
-                Title = obj.Title,
-                ReleaseDate = obj.ReleaseDate
-            };
+                    var movies = Load();
+                    var storedMovies = await _moviesRepository.GetAll(null, null);
 
-            if (obj.Cast != null) dto.Cast = obj.Cast.ToArray();
-            dto.BuildSearchText();
-            return dto;
+                    foreach(var movie in movies)
+                    {
+                        var storedMovie = storedMovies.FirstOrDefault(m => m.ReferenceId == movie.Id);
+                        if (storedMovie == null)
+                        {
+                            storedMovies.Add(Maps.MapToEntity(movie));
+                        } 
+                        else
+                        {
+                            storedMovie.Genre = movie.Genre;
+                            storedMovie.Classification = movie.Classification;
+                            storedMovie.Rating = movie.Rating;
+                            storedMovie.ReleaseDate = movie.ReleaseDate;
+                            storedMovie.Title = movie.Title;
+                            storedMovie.SearchText = movie.SearchText;
+                            
+                            // update cast as well
+                        }
+                    }
+
+                    _moviesRepository.Commit(transaction);
+                }
+            }
         }
     }
 }

@@ -3,6 +3,7 @@ using System.Web.Http;
 using MovieApp.Manager;
 using MovieApp.Models;
 using MovieService.Model;
+using System.Threading.Tasks;
 
 namespace MovieService.Controllers
 {
@@ -17,22 +18,21 @@ namespace MovieService.Controllers
 
         [Route("api/Movies/")]
         [HttpGet]
-        public IHttpActionResult List([FromUri] SearchModel model)
+        public async Task<IHttpActionResult> List([FromUri] SearchModel model)
         {
             if (model == null) model = new SearchModel();
 
             IEnumerable<Movie> movies;
             if (!string.IsNullOrWhiteSpace(model.Term))
             {
-                movies = _moviesManager.Search(model.Term);
+                movies = await _moviesManager.Search(model.Term);
             }
             else
             {
-                movies = _moviesManager.GetAll();
+                movies = await _moviesManager.GetAll(model.Field, model.Direction);
             }
 
-            var sortedMovies = _moviesManager.Sort(movies, model.Field, model.Direction);
-            return Ok(sortedMovies);
+            return Ok(movies);
         }
 
         [Route("api/Movies/{id}")]
@@ -50,8 +50,8 @@ namespace MovieService.Controllers
         [HttpPut]
         public IHttpActionResult Add([FromBody] Movie movie)
         {
-            var result = _moviesManager.AddNew(movie);
-            return Ok(result);
+            _moviesManager.AddNew(movie);
+            return Ok();
         }
 
         [Route("api/Movies/{id}")]

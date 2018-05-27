@@ -14,6 +14,13 @@ namespace MovieApp.Models
         public string[] Cast { get; set; }
 
         private string _searchText;
+        public string SearchText
+        {
+            get
+            {
+                return _searchText;
+            }
+        }
 
         public void BuildSearchText()
         {
